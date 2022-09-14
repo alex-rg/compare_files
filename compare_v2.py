@@ -34,31 +34,14 @@ def compare_sorted(files_data, separator='|'):
     files = [d['path'] for d in files_data]
     prefixes = [(d['prefix'], len(d['prefix'])) for d in files_data]
     with open_files(files) as FDs:
-        lines = []
-        for i, fd in enumerate(FDs):
-            line = None
-            while True:
-                line = fd.readline()
-                if line == '':
-                    line = chr(255)
-                    break
-                if line.startswith(prefixes[i][0]):
-                    line = line[prefixes[i][1]:]
-                    if separator is not None:
-                        line, rest = line.split(separator, maxsplit=1)
-                    break
-            lines.append(line)
+        lines = [None for _ in range(len(FDs))]
         eof = False
-        first = True
-        min_line = min(lines)
+        min_line = None
         rest_diff = False
+        old_rest = None
         while not eof:
             eof = True
             for i, fd in enumerate(FDs):
-                if first:
-                    first = False
-                    eof = False
-                    break
                 if min_line == chr(255):
                     break
                 if lines[i] == min_line:
@@ -74,22 +57,23 @@ def compare_sorted(files_data, separator='|'):
                                 rest_diff = rest == old_rest
                                 old_rest = rest
                         else:
-                            line = chr(255)
+                            line = chr(255) if min_line is not None else None
                     else:
                         line = chr(255)
                     lines[i] = line
 
-            min_line = min(lines)
+            min_line = min(lines) if None not in lines else None
             miss_data= []
-            for i, line in enumerate(lines):
-                if line > min_line:
-                    miss_data.append(files[i])
+            if min_line is not None:
+                for i, line in enumerate(lines):
+                    if line > min_line:
+                        miss_data.append(files[i])
 
-            if miss_data:
-                yield {min_line: miss_data}
+                if miss_data:
+                    yield {min_line: miss_data}
 
-            if not miss_data and rest_diff:
-                yield {min_line: 'mismatch'}
+                if not miss_data and rest_diff:
+                    yield {min_line: 'mismatch'}
 
 
 def compare(dumps):
