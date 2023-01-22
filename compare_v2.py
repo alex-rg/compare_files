@@ -30,8 +30,9 @@ def open_files(path_array):
             fd.close()
 
 
-def compare_sorted(files_data, separator='|'):
+def compare_sorted(files_data):
     files = [d['path'] for d in files_data]
+    separators = [d['separator'] for d in files_data]
     prefixes = [(d['prefix'], len(d['prefix'])) for d in files_data]
     with open_files(files) as FDs:
         lines = [None for _ in range(len(FDs))]
@@ -51,8 +52,8 @@ def compare_sorted(files_data, separator='|'):
                         line = line.strip()
                         if line.startswith(prefixes[i][0]):
                             line = line[prefixes[i][1]:]
-                            if separator is not None:
-                                line, rest = line.split(separator, maxsplit=1)
+                            if separators[i] is not None:
+                                line, rest = line.split(separators[i], maxsplit=1)
                             if old_rest:
                                 rest_diff = rest == old_rest
                                 old_rest = rest
@@ -76,15 +77,19 @@ def compare_sorted(files_data, separator='|'):
                     yield {min_line: 'mismatch'}
 
 
-def compare(dumps):
-    sorted_dumps = []
-    for i, dump in enumerate(dumps):
-        try:
-            path, prefix = dump['path'], dump['prefix']
-        except (TypeError, KeyError):
-            path = dump
-            prefix = ''
-        sorted_dumps.append({ 'path': sort_file(path, args.tmpdir), 'prefix': prefix})
+def compare(dumps, ncpus=None, sorted=False):
+    if not sorted:
+        sorted_dumps = []
+        for i, dump in enumerate(dumps):
+            try:
+                path, prefix, separator = dump['path'], dump['prefix'], dump['separator']
+            except (TypeError, KeyError):
+                path = dump
+                prefix = ''
+                separator = None
+            sorted_dumps.append({ 'path': sort_file(path, args.tmpdir, ncpus), 'prefix': prefix, 'separator': separator})
+    else:
+        sorted_dumps = dumps
     for res in compare_sorted(sorted_dumps):
         print(res)
         
@@ -94,6 +99,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--dumps', help="Dump list to be compared, comma-separated.", type=str)
     parser.add_argument('-t', '--tmpdir', help="Temporary directory.", type=str)
+    g = parser.add_mutually_exclusive_group()
+    g.add_argument('-n', '--ncpus', help="Number of cpus to use when sorting.", type=str, default=None)
+    g.add_argument('-s', '--sorted', help="Assume that dumps are already sorted. Note that order should be according to UTF-8 encoding (LC_COLLATE='utf-8').", action='store_true')
     args = parser.parse_args()
     dumps = args.dumps.split(',')
     dump_data = []
@@ -104,5 +112,7 @@ if __name__ == '__main__':
             path = dump
             prefix = ''
             separator = '|'
+        if separator == '':
+            separator = None
         dump_data.append({'path': path, 'prefix': prefix, 'separator': separator})
-    compare(dump_data)
+    compare(dump_data, args.ncpus, sorted=args.sorted)
