@@ -7,7 +7,7 @@ from subprocess import call
 from contextlib import contextmanager
 
 def sort_file(filename, tmpdir, ncpus=None):
-    if not os.path.exists(tmpdir): 
+    if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
     output = tmpdir + '/' + os.path.basename(filename) + '_sorted'
     extra = [] if ncpus is None else ["--parallel", ncpus]
@@ -77,7 +77,7 @@ def compare_sorted(files_data):
                     yield {min_line: 'mismatch'}
 
 
-def compare(dumps, ncpus=None, sorted=False):
+def compare(dumps, ncpus=None, sorted=False, print_only=None):
     if not sorted:
         sorted_dumps = []
         for i, dump in enumerate(dumps):
@@ -91,14 +91,26 @@ def compare(dumps, ncpus=None, sorted=False):
     else:
         sorted_dumps = dumps
     for res in compare_sorted(sorted_dumps):
-        print(res)
-        
+        if print_only is None:
+            print(res)
+        else:
+            should_print = True
+            vals = [x for x in res.values()][0]
+            if len(vals) == len(print_only):
+                for idx in print_only:
+                    if sorted_dumps[idx]['path'] not in vals:
+                        should_print = False
+                        break
+                if should_print:
+                    for k in res:
+                        print(k)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--dumps', help="Dump list to be compared, comma-separated.", type=str)
     parser.add_argument('-t', '--tmpdir', help="Temporary directory.", type=str)
+    parser.add_argument('-o', '--print_only', help="Print file only if it is missing in dumps indicated here. Comma-separated list of idxes, starging from zero.", type=str, default=None)
     g = parser.add_mutually_exclusive_group()
     g.add_argument('-n', '--ncpus', help="Number of cpus to use when sorting.", type=str, default=None)
     g.add_argument('-s', '--sorted', help="Assume that dumps are already sorted. Note that order should be according to UTF-8 encoding (LC_COLLATE='utf-8').", action='store_true')
@@ -115,4 +127,7 @@ if __name__ == '__main__':
         if separator == '':
             separator = None
         dump_data.append({'path': path, 'prefix': prefix, 'separator': separator})
-    compare(dump_data, args.ncpus, sorted=args.sorted)
+    print_only = None
+    if args.print_only:
+        print_only = [int(x) for x in args.print_only.split(',')]
+    compare(dump_data, args.ncpus, sorted=args.sorted, print_only=print_only)
