@@ -15,21 +15,21 @@ from DIRAC import gLogger
 def doLs( directory, fc ):
   dirs = []
   files = []
-   
+
   print("ls of {0}".format(directory), file=sys.stderr)
   res = fc.listDirectory(directory, False)
   if not res['OK']:
-    gLogger.error( "Can not list directory %s: %s" % (directory, res['Message']) ) 
-  
+    gLogger.error( "Can not list directory %s: %s" % (directory, res['Message']) )
+
   subdirs = res['Value']['Successful'][directory]['SubDirs']
   for key in  subdirs:
     if subdirs[key]:
-      dirs.append(key) 
+      dirs.append(key)
 
   subfiles = res['Value']['Successful'][directory]['Files']
   for key in  subfiles:
     if subfiles[key]:
-      files.append(key) 
+      files.append(key)
 
   return (dirs, files)
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
       exclude = val.split(',')
     elif opt == 'depth':
       depth = int(val)
-  
+
   res = fc.isDirectory(directory)
   if not res['OK']:
     gLogger.error("Can not check directory %s, %s" % (directory,res['Message']) )
@@ -101,7 +101,7 @@ if __name__ == "__main__":
   if not res['Value']['Successful'][directory]:
     gLogger.error("Path must be a directory, but %s is not" % directory)
     DIRAC.exit( -1 )
-    
+
   ( dirs, files ) = getDirList(directory, depth, fc, exclude)
   print("DIRS:")
   for d in dirs:
@@ -110,4 +110,3 @@ if __name__ == "__main__":
   print("\n\n\nFILES:")
   for f in files:
     print(f)
-# 
