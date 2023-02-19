@@ -49,7 +49,7 @@ def getDirList( directory, depth, fc, exclude=None ):
   resd = []
   resf = []
 
-  if depth == 0 :
+  if depth == 0:
     resd.append(directory)
   elif depth > 0 :
     (dirs, files) = doLs( directory, fc )
@@ -177,9 +177,14 @@ if __name__ == "__main__":
     dummy_lock = dummyContextManager()
     res = [getFiles(dirs, se, dummy_lock)]
 
-  print("\n\n\nUnchecked files")
-  for f in files:
-    print(f)
+  print("Now process ls-found replicas", file=sys.stderr)
+  resolved_replicas = fc.getReplicas(files)
+  if not resolved_replicas['OK']:
+    print("Failed to resolve ls-found replicas", file=sys.stderr)
+  else:
+    for lfn, se_dict in resolved_replicas['Value']['Successful'].items():
+      if se in se_dict:
+        print(lfn)
 
   print("\n\n\nFAILED:")
   for lst in res:
