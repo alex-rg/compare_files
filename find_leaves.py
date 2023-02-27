@@ -107,10 +107,19 @@ def processDirectories( directories, fc, se, lock ):
           failed.append(dr)
     return failed
 
-def getFiles( directories, se, lock ):
+def getFiles( directories, se, lock, attempts=3 ):
     my_fc = FileCatalog()
     failed = processDirectories(directories, fc, se, lock)
-    return failed
+    files = []
+    while attempts > 0 and failed:
+      dirs = []
+      for dr in failed:
+        td, tf = getDirList(dr, 1, fc)
+        dirs += td
+        files += tf
+      failed = processDirectories(dirs, fc, se, lock)
+      attempts = attempts - 1
+    return (failed, files)
 
 
 if __name__ == "__main__":
@@ -139,6 +148,7 @@ if __name__ == "__main__":
   fc = FileCatalog()
 
   directory = '/lhcb'
+  exclude = ['/lhcb/user']
   depth = 2
   rfiles = []
   se = 'RAL-RDST'
@@ -156,6 +166,10 @@ if __name__ == "__main__":
     elif opt == 'threads':
       nthreads = int(val)
 
+  if directory in exclude:
+    print("Warning: path in exclude, it will not be excluded", file=sys.stderr)
+    exclude = [d for d in exclude if d != directory]
+
   res = fc.isDirectory(directory)
   if not res['OK']:
     gLogger.error("Can not check directory %s, %s" % (directory,res['Message']) )
@@ -165,7 +179,7 @@ if __name__ == "__main__":
     gLogger.error("Path must be a directory, but %s is not" % directory)
     DIRAC.exit( -1 )
 
-  ( dirs, files ) = getDirList(directory, depth, fc)
+  dirs, files = getDirList(directory, depth, fc, exclude)
   shuffle(dirs)
   if nthreads > 1:
     pool = ThreadPool(nthreads)
@@ -177,6 +191,11 @@ if __name__ == "__main__":
     dummy_lock = dummyContextManager()
     res = [getFiles(dirs, se, dummy_lock)]
 
+  failed_dirs = []
+  for d, f in res:
+    files += f
+    failed_dirs += d
+
   print("Now process ls-found replicas", file=sys.stderr)
   resolved_replicas = fc.getReplicas(files)
   if not resolved_replicas['OK']:
@@ -186,7 +205,7 @@ if __name__ == "__main__":
       if se in se_dict:
         print(lfn)
 
-  print("\n\n\nFAILED:")
-  for lst in res:
-    for d in lst:
+  if failed_dirs:
+    print("\n\n\nFAILED DIRS:")
+    for d in failed_dirs:
       print(d)
