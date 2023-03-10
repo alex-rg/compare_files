@@ -77,8 +77,12 @@ def find_stub(dump, ceph_pool, object_size=None, nprocs=1, conffile='/etc/ceph/c
         thread_pool = ThreadPool(nprocs)
     obj_count = 0
     line = None
+    idx = 0
     with open(dump) as fd:
         while line != '':
+            idx += 1
+            if idx % 1000 == 0:
+                print("processing line ", idx, file=sys.stderr)
             line = fd.readline().rstrip()
             filename = line[:-17]
             last_filename = last_obj[:-17] if last_obj else filename
