@@ -59,7 +59,7 @@ def process_results(async_results, object_size):
 def find_stub(dump, ceph_pool, object_size, nprocs=2):
     async_results = []
     last_obj = None 
-    thread_pool = ThreadPool(2)
+    thread_pool = ThreadPool(nprocs)
     obj_count = 0
     with open(dump) as fd:
         for line in fd:
