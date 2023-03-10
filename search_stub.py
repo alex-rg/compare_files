@@ -91,7 +91,6 @@ def find_stub(dump, ceph_pool, object_size=None, nprocs=1, conffile='/etc/ceph/c
                 if thread_pool:
                     async_results.append(  ( last_filename, thread_pool.apply_async(check_file, fargs) )  )
                 else:
-                    print("checking |{0}|".format(last_filename), file=sys.stderr)
                     if not check_file(*fargs):
                         print(last_filename)
                 obj_count = 1
