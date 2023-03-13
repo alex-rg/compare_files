@@ -13,6 +13,7 @@ DEF_NTHREADS = 1
 DEF_NPROCS = 1
 DEF_TMPDIR = '/tmp'
 
+FLUSH_STEP = 1000
 
 def filename2object(filename, obj_num):
     return '{0}.{1:0>16x}'.format(filename, obj_num)
@@ -97,7 +98,7 @@ def find_stub(dump, ceph_pool, object_size=None, nprocs=1, conffile='/etc/ceph/c
             else:
                 obj_count += 1
 
-            if len(async_results) > 10: 
+            if len(async_results) > FLUSH_STEP: 
                 process_results(async_results)
                 async_results = []
 
