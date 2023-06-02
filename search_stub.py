@@ -16,10 +16,19 @@ DEF_TMPDIR = '/tmp'
 FLUSH_STEP = 1000
 
 def filename2object(filename, obj_num):
+    "Given file's name and object number, get full object's name"
     return '{0}.{1:0>16x}'.format(filename, obj_num)
 
 
 def check_file(ctx, file_name, obj_count, object_size=None):
+    """
+    Check whether file is 'stub' or not. Stub means its size according to metadata differs from its real size
+
+    @param ctx:         rados context
+    @param file_name:   name of the file to check
+    @param obj_count:   number of ceph objects that store file's data
+    @param object_size: maximum size of a single ceph object
+    """
     res = True
     try:
         size = int(ctx.get_xattr(filename2object(file_name, 0), 'striper.size'))
@@ -39,6 +48,13 @@ def check_file(ctx, file_name, obj_count, object_size=None):
 
 
 def sort_file(filename, tmpdir, ncpus=1):
+    """
+    Sort given file.
+
+    @param filename: name of the file to sort
+    @param tmpdir:   directory where sorted file will be stored. It also will be used by 'sort' utility
+    @return:         path of the sorted file
+    """
     sorted_path = None
     if os.path.exists(filename) and os.path.isdir(tmpdir):
         _tfd, sorted_path= mkstemp(dir=tmpdir)
@@ -57,6 +73,12 @@ def sort_file(filename, tmpdir, ncpus=1):
 
 
 def process_results(async_results):
+    """
+    Print stub files that has been already found.
+
+    @param async_results: array [(<file_name>, <async_result>), ...], where <async_result> is the output of async
+                          application of the 'check_file' function to filename
+    """
     for filename, ares in async_results:
         ares.wait()
         if not ares.successful():
@@ -67,6 +89,16 @@ def process_results(async_results):
 
 
 def find_stub(dump, ceph_pool, object_size=None, nprocs=1, conffile='/etc/ceph/ceph.conf'):
+    """
+    Find stub files and print them to stdout. File is considered to be stub if its size differs
+    from the 'size' value written in its metadata.
+
+    @param dump:        a file with the list of all cehp objects in the pool, separated by newlines
+    @param ceph_pool:   ceph pool name
+    @param object_size: maximum object size (defined by libradosstriper)
+    @param nprocs:      number of threads to use
+    @param conffile:    ceph config file
+    """
     cluster = rados.Rados(conffile=conffile)
     cluster.connect()
     ctx = cluster.open_ioctx(ceph_pool)
@@ -114,6 +146,21 @@ def find_stub(dump, ceph_pool, object_size=None, nprocs=1, conffile='/etc/ceph/c
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(epilog="""
+The script is used to identify potentially 'stub' files on the ceph-based storage element. A file is
+considered to be stub if its size differs from the 'size' value written in file's metadata
+
+To perform the test a dump of all objects from a given rados pool is needed. The script will then
+count the sizes of all objects corresponding to given file and compare this value with the one
+stored in file's metadata. If there is a mismatch, file is stub.
+
+Please note that the files that were partially transferred at the time when the dump was collected
+also will be reported as stub. That means that additional verification of all found files is absolutely
+necessary.
+
+Usage example:
+$ search_stub.py -p lhcb -o "$((64*1024*1024))" -s ../lhcb_dump_sorted
+""", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-p', '--pool', help="Rados pool to use", required=True)
     parser.add_argument('-n', '--nthreads', help="Number of threads to use. Default is {0}.".format(DEF_NTHREADS), default=DEF_NTHREADS, type=int)
     parser.add_argument('-N', '--Nprocs', help="Number of processes to use for sort. Default is {0}.".format(DEF_NPROCS), default=DEF_NPROCS, type=int)
